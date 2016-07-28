@@ -6,6 +6,8 @@ import (
 	"github.com/ghetzel/onkyo-remote"
 	"github.com/op/go-logging"
 	"os"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -152,25 +154,7 @@ func main() {
 					if err := client.Send(code, c.Args().Tail()...); err == nil {
 						select {
 						case message := <-client.Messages():
-							if ci, value := MessageToCommand(subcommand, message); ci != nil {
-								v := ``
-
-								if value != nil {
-									v = value.String()
-								}
-
-								if c.Bool(`only-value`) {
-									if v != `` {
-										fmt.Println(v)
-									}
-								} else {
-									fmt.Printf("%s\t%s\t%s\t%s\n", ci.Code, v, ci.Name, ci.Description)
-								}
-
-								if v == `` {
-									os.Exit(1)
-								}
-							} else {
+							if ci, _ := MessageToCommand(subcommand, message); ci == nil {
 								log.Fatalf("Unknown command %q", message.Code())
 							}
 						case <-time.After(c.GlobalDuration(`response-timeout`)):
@@ -188,18 +172,43 @@ func main() {
 			Usage:     `Show the documentation for a given command`,
 			ArgsUsage: `COMMAND`,
 			Action: func(c *cli.Context) {
-				if cmd, ok := codeToCmd[c.Args().First()]; ok && cmd != nil {
+				commandName := c.Args().First()
+				commands := make([]*CommandInfo, 0)
+
+				if commandName != `` {
+					if cmd, ok := codeToCmd[c.Args().First()]; ok && cmd != nil {
+						commands = append(commands, cmd)
+					} else {
+						log.Fatalf("Could not find information on command %q", c.Args().First())
+					}
+				} else {
+					keys := make([]string, 0)
+
+					for name, _ := range codeToCmd {
+						keys = append(keys, name)
+					}
+
+					sort.Strings(keys)
+
+					for _, key := range keys {
+						if cmd, ok := codeToCmd[key]; ok && cmd != nil {
+							commands = append(commands, cmd)
+						}
+					}
+				}
+
+				for _, cmd := range commands {
 					fmt.Printf("%s - %s (zone: %s)\n", cmd.Code, cmd.Description, cmd.Zone)
 
 					if len(cmd.Values) > 0 {
 						fmt.Printf("\nSubcommands:\n")
 
 						for _, subcommand := range cmd.Values {
-							fmt.Printf("  %-10s %s\n", subcommand.Code, subcommand.Description)
+							fmt.Printf("  %-10s %s\n", subcommand.Code, strings.Replace(subcommand.Description, "\n", "\n    ", -1))
 						}
+
+						fmt.Printf("\n")
 					}
-				} else {
-					log.Fatalf("Could not find information on command %q", c.Args().First())
 				}
 			},
 		},
