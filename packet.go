@@ -12,10 +12,8 @@ import (
 )
 
 const maxPacketSize = 4096
-
 const headerSize = 16
-
-const magic = "ISCP"
+const magic = `ISCP`
 const terminator = "\000\r\n"
 const version = 1
 
@@ -60,6 +58,7 @@ func (p packet) validateMessage() error {
 	}
 	return nil
 }
+
 func (p packet) validate() error {
 	if err := p.validateHeader(); err != nil {
 		return err

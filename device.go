@@ -1,14 +1,14 @@
 package eiscp
 
 import (
-	"log"
 	"net"
 	"runtime"
 	"strings"
 )
 
-type Device interface {
+type IDevice interface {
 	Info() DeviceInfo
+	Address() net.Addr
 	Messages() <-chan Message
 	Send(cmd string, params ...string) error
 }
@@ -32,57 +32,75 @@ const (
 	CategoryAny    = DeviceCategory('x') // Used for discovery
 )
 
-type device struct {
+type Device struct {
+	IDevice
 	conn   net.Conn
 	info   DeviceInfo
 	recv   chan Message
 	remote net.Addr
 }
 
-func newDevice(addr net.Addr, info DeviceInfo) (*device, error) {
-	log.Println(addr)
-	conn, err := net.Dial("tcp", addr.String())
-	if err != nil {
+func NewDevice(addr net.Addr, info DeviceInfo) (*Device, error) {
+	if conn, err := net.Dial(`tcp`, addr.String()); err == nil {
+		d := &Device{
+			conn:   conn,
+			info:   info,
+			recv:   make(chan Message),
+			remote: addr,
+		}
+
+		go d.listen()
+
+		return d, nil
+	} else {
 		return nil, err
 	}
-	d := &device{
-		conn:   conn,
-		info:   info,
-		recv:   make(chan Message),
-		remote: addr,
-	}
-
-	go d.listen()
-
-	return d, nil
 }
 
-func (r *device) Info() DeviceInfo         { return r.info }
-func (r *device) Messages() <-chan Message { return r.recv }
-func (r *device) Send(cmd string, params ...string) error {
-	cmdstring := cmd + strings.Join(params, "")
-	packet := encodePacket(cmdstring, r.info.Category)
-	_, err := r.conn.Write(packet.bytes())
+func (self *Device) Info() DeviceInfo {
+	return self.info
+}
+
+func (self *Device) Address() net.Addr {
+	return self.remote
+}
+
+func (self *Device) Messages() <-chan Message {
+	return self.recv
+}
+
+func (self *Device) Send(cmd string, params ...string) error {
+	cmdstring := cmd + strings.Join(params, ``)
+	packet := encodePacket(cmdstring, self.info.Category)
+	_, err := self.conn.Write(packet.bytes())
 	return err
 }
-func (r *device) listen() {
-	runtime.SetFinalizer(r, func(r *device) { r.conn.Close() })
+
+func (self *Device) listen() {
+	runtime.SetFinalizer(self, func(self *Device) {
+		self.conn.Close()
+	})
+
 	data := make([]byte, maxPacketSize)
+
 	for {
-		datalen, err := r.conn.Read(data)
-		if err != nil {
-			log.Println(err)
+		if datalen, err := self.conn.Read(data); err == nil {
+			packets, err := decodePackets(data[:datalen])
+
+			if err != nil {
+				log.Warningf("Failed to decode packet: %v", err)
+			}
+
+			for _, pkt := range packets {
+				self.recv <- pkt.Message()
+			}
+		} else {
+			log.Errorf("Failed to read response: %v", err)
 			break
 		}
-		packets, err := decodePackets(data[:datalen])
-		if err != nil {
-			log.Println(err)
-		}
-		for _, pkt := range packets {
-			r.recv <- pkt.Message()
-		}
 	}
-	runtime.SetFinalizer(r, nil)
-	r.conn.Close()
-	close(r.recv)
+
+	runtime.SetFinalizer(self, nil)
+	self.conn.Close()
+	close(self.recv)
 }

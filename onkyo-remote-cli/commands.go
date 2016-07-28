@@ -2,13 +2,36 @@ package main
 
 import (
 	"fmt"
-	"github.com/augustoroman/onkyo-remote"
+	"github.com/ghetzel/onkyo-remote"
+	"strconv"
+)
+
+type ValueType int
+
+const (
+	Raw ValueType = iota
+	Hexadecimal
 )
 
 type Value struct {
+	Data        string
 	Code        string
 	Name        string
 	Description string
+	Type        ValueType
+}
+
+func (self *Value) String() string {
+	switch self.Type {
+	case Hexadecimal:
+		if v, err := strconv.ParseInt(self.Data, 16, 32); err == nil {
+			return fmt.Sprintf("%d", v)
+		} else {
+			return ``
+		}
+	default:
+		return self.Data
+	}
 }
 
 type CommandInfo struct {
@@ -21,41 +44,26 @@ type CommandInfo struct {
 
 var codeToCmd = map[string]*CommandInfo{}
 
-func init() {
+func initCommands() {
 	for i := range AllKnownCommands {
 		cmd := &AllKnownCommands[i]
 		codeToCmd[cmd.Code] = cmd
 	}
 }
 
-func MessageToCommand(m eiscp.Message) (*CommandInfo, *Value) {
-	cmd := codeToCmd[m.Code()]
-	if cmd == nil {
+func MessageToCommand(subcommand string, m eiscp.Message) (*CommandInfo, *Value) {
+	if cmd, ok := codeToCmd[m.Code()]; ok && cmd != nil {
+		for i := range cmd.Values {
+			if cmd.Values[i].Code == subcommand {
+				value := &cmd.Values[i]
+				value.Data = m.Value()
+
+				return cmd, value
+			}
+		}
+
+		return cmd, nil
+	} else {
 		return nil, nil
 	}
-	for i := range cmd.Values {
-		if cmd.Values[i].Code == m.Value() {
-			return cmd, &cmd.Values[i]
-		}
-	}
-	return cmd, nil
-}
-
-func pretty(m eiscp.Message) string {
-	cmd, val := MessageToCommand(m)
-	if cmd == nil {
-		return fmt.Sprintf("Unknown code: [%s] Val: [%s]", m.Code(), m.Value())
-	}
-	if val == nil {
-		s := ""
-		for i := range cmd.Values {
-			c := '!'
-			if cmd.Values[i].Code == m.Value() {
-				c = '+'
-			}
-			s += fmt.Sprintf("%c%s ", c, cmd.Values[i].Code)
-		}
-		return fmt.Sprintf("%s (%s): Unknown val: [%q] : %s", cmd.Name, cmd.Code, m.Value(), s)
-	}
-	return fmt.Sprintf("%s: %s    (%s: %s)", cmd.Name, val.Name, cmd.Code, val.Code)
 }

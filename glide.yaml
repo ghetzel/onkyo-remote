@@ -1,0 +1,6 @@
+package: github.com/ghetzel/onkyo-remote
+import:
+- package: github.com/augustoroman/hexdump
+- package: github.com/augustoroman/multierror
+- package: github.com/augustoroman/onkyo-remote
+- package: github.com/gobs/cmd

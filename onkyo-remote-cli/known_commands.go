@@ -56,13 +56,13 @@ var AllKnownCommands = []CommandInfo{
 		Name:        `master-volume`,
 		Description: `Master Volume Command`,
 		Values: []Value{
-			{Code: `(0, 100)`, Name: `None`, Description: `Volume Level 0 – 100 ( In hexadecimal representation)`},
-			{Code: `(0, 80)`, Name: `None`, Description: `Volume Level 0 – 80 ( In hexadecimal representation)`},
+			{Code: `(0, 100)`, Name: `None`, Description: `Volume Level 0-100 ( In hexadecimal representation)`},
+			{Code: `(0, 80)`, Name: `None`, Description: `Volume Level 0-80 ( In hexadecimal representation)`},
 			{Code: `UP`, Name: `level-up`, Description: `sets Volume Level Up`},
 			{Code: `DOWN`, Name: `level-down`, Description: `sets Volume Level Down`},
 			{Code: `UP1`, Name: `level-up-1db-step`, Description: `sets Volume Level Up 1dB Step`},
 			{Code: `DOWN1`, Name: `level-down-1db-step`, Description: `sets Volume Level Down 1dB Step`},
-			{Code: `QSTN`, Name: `query`, Description: `gets the Volume Level`},
+			{Code: `QSTN`, Name: `query`, Description: `gets the Volume Level`, Type: Hexadecimal},
 		},
 	},
 	{
@@ -188,7 +188,7 @@ var AllKnownCommands = []CommandInfo{
 			{Code: `TEST`, Name: `test`, Description: `TEST Key`},
 			{Code: `CHSEL`, Name: `chsel`, Description: `CH SEL Key`},
 			{Code: `UP`, Name: `up`, Description: `LEVEL + Key`},
-			{Code: `DOWN`, Name: `down`, Description: `LEVEL – KEY`},
+			{Code: `DOWN`, Name: `down`, Description: `LEVEL-KEY`},
 		},
 	},
 	{
@@ -199,7 +199,7 @@ var AllKnownCommands = []CommandInfo{
 		Values: []Value{
 			{Code: `(-15, 0, 12)`, Name: `15db-0db-12db`, Description: `sets Subwoofer Level -15dB - 0dB - +12dB`},
 			{Code: `UP`, Name: `up`, Description: `LEVEL + Key`},
-			{Code: `DOWN`, Name: `down`, Description: `LEVEL – KEY`},
+			{Code: `DOWN`, Name: `down`, Description: `LEVEL-KEY`},
 			{Code: `QSTN`, Name: `query`, Description: `gets the Subwoofer Level`},
 		},
 	},
@@ -211,7 +211,7 @@ var AllKnownCommands = []CommandInfo{
 		Values: []Value{
 			{Code: `(-12, 0, 12)`, Name: `12db-0db-12db`, Description: `sets Center Level -12dB - 0dB - +12dB`},
 			{Code: `UP`, Name: `up`, Description: `LEVEL + Key`},
-			{Code: `DOWN`, Name: `down`, Description: `LEVEL – KEY`},
+			{Code: `DOWN`, Name: `down`, Description: `LEVEL-KEY`},
 			{Code: `QSTN`, Name: `query`, Description: `gets the Subwoofer Level`},
 		},
 	},
@@ -1777,8 +1777,8 @@ oo -> receivable Program (8 bits are represented in hexadecimal notation. Each b
 		Name:        `volume`,
 		Description: `Zone2 Volume Command`,
 		Values: []Value{
-			{Code: `(0, 100)`, Name: `None`, Description: `Volume Level 0 – 100 ( In hexadecimal representation)`},
-			{Code: `(0, 80)`, Name: `None`, Description: `Volume Level 0 – 80 ( In hexadecimal representation)`},
+			{Code: `(0, 100)`, Name: `None`, Description: `Volume Level 0-100 ( In hexadecimal representation)`},
+			{Code: `(0, 80)`, Name: `None`, Description: `Volume Level 0-80 ( In hexadecimal representation)`},
 			{Code: `UP`, Name: `level-up`, Description: `sets Volume Level Up`},
 			{Code: `DOWN`, Name: `level-down`, Description: `sets Volume Level Down`},
 			{Code: `QSTN`, Name: `query`, Description: `gets the Volume Level`},
@@ -2030,8 +2030,8 @@ oo -> receivable Program (8 bits are represented in hexadecimal notation. Each b
 		Name:        `volume`,
 		Description: `Zone3 Volume Command`,
 		Values: []Value{
-			{Code: `(0, 100)`, Name: `None`, Description: `Volume Level 0 – 100 ( In hexadecimal representation)`},
-			{Code: `(0, 80)`, Name: `None`, Description: `Volume Level 0 – 80 ( In hexadecimal representation)`},
+			{Code: `(0, 100)`, Name: `None`, Description: `Volume Level 0-100 ( In hexadecimal representation)`},
+			{Code: `(0, 80)`, Name: `None`, Description: `Volume Level 0-80 ( In hexadecimal representation)`},
 			{Code: `UP`, Name: `level-up`, Description: `sets Volume Level Up`},
 			{Code: `DOWN`, Name: `level-down`, Description: `sets Volume Level Down`},
 			{Code: `QSTN`, Name: `query`, Description: `gets the Volume Level`},
@@ -2242,8 +2242,8 @@ oo -> receivable Program (8 bits are represented in hexadecimal notation. Each b
 		Name:        `volume`,
 		Description: `Zone4 Volume Command`,
 		Values: []Value{
-			{Code: `(0, 100)`, Name: `None`, Description: `Volume Level 0 – 100 ( In hexadecimal representation)`},
-			{Code: `(0, 80)`, Name: `None`, Description: `Volume Level 0 – 80 ( In hexadecimal representation)`},
+			{Code: `(0, 100)`, Name: `None`, Description: `Volume Level 0-100 ( In hexadecimal representation)`},
+			{Code: `(0, 80)`, Name: `None`, Description: `Volume Level 0-80 ( In hexadecimal representation)`},
 			{Code: `UP`, Name: `level-up`, Description: `sets Volume Level Up`},
 			{Code: `DOWN`, Name: `level-down`, Description: `sets Volume Level Down`},
 			{Code: `QSTN`, Name: `query`, Description: `gets the Volume Level`},

@@ -1,99 +1,138 @@
 package eiscp
 
 import (
-	"log"
+	"fmt"
+	"github.com/op/go-logging"
 	"net"
+	"strings"
 	"time"
 )
 
-func Discover(quit <-chan time.Time, errs chan<- error) <-chan Device {
-	d := newDiscoverer(errs)
-	if d.start() {
-		// Shutdown the connection when we get a signal.
-		go func() {
-			<-quit
-			d.conn.Close()
-		}()
-	}
-	return d.devices
-}
+var log = logging.MustGetLogger(`eiscp`)
 
-const discoveryPort = 60128
+const DEFAULT_DISCOVERY_TIMEOUT = time.Duration(5) * time.Second
+const DEFAULT_RESPONSE_TIMEOUT = time.Duration(3) * time.Second
+const DEFAULT_DISCOVERY_PORT = 60128
 
-var discoverListenAddr = &net.UDPAddr{IP: net.IPv4zero, Port: 0}
-var discoverBroadcastAddr = &net.UDPAddr{IP: net.IPv4bcast, Port: discoveryPort}
-var discoverPacket = encodePacket("ECNQSTN", CategoryAny)
+func Discover(timeout time.Duration, discoveryRange string) ([]*Device, error) {
+	d := NewDiscoverer(timeout)
 
-type discoverer struct {
-	conn    *net.UDPConn
-	devices chan Device
-	errs    chan<- error
-}
-
-func newDiscoverer(errs chan<- error) *discoverer {
-	d := &discoverer{devices: make(chan Device), errs: errs}
-	return d
-}
-
-func (d *discoverer) start() bool {
-	var err error
-	d.conn, err = net.ListenUDP("udp", discoverListenAddr)
-	if d.isErr(err) {
-		close(d.devices)
-		return false
-	}
-
-	log.Println("Sending discovery packet:\n" + discoverPacket.debug())
-
-	_, err = d.conn.WriteToUDP(discoverPacket.bytes(), discoverBroadcastAddr)
-	if d.isErr(err) {
-		d.conn.Close()
-		close(d.devices)
-		return false
-	}
-
-	go d.monitor()
-	return true
-}
-
-func (d *discoverer) monitor() {
-	data := make([]byte, maxPacketSize)
-	for {
-		msglen, from, err := d.conn.ReadFromUDP(data)
-		if d.isErr(err) {
-			break
-		}
-		p := packet(data[:msglen])
-		if !p.equals(discoverPacket) {
-			d.createDevice(p, from)
-		}
-	}
-	d.conn.Close()
-	close(d.devices)
-}
-
-func (d *discoverer) createDevice(p packet, from *net.UDPAddr) {
-	var info DeviceInfo
-	if d.isErr(p.parseInfo(&info)) {
-		return
-	}
-
-	device, err := newDevice(from, info)
-	if d.isErr(err) {
-		return
-	}
-
-	d.devices <- device
-}
-
-func (d *discoverer) isErr(e error) bool {
-	if e != nil {
-		if d.errs != nil {
-			d.errs <- e
+	if discoveryRange != `` && discoveryRange != `auto` {
+		if strings.Contains(discoveryRange, `/`) {
+			if ip, _, err := net.ParseCIDR(discoveryRange); err == nil {
+				d.discoveryRange = &net.UDPAddr{
+					IP:   ip,
+					Port: DEFAULT_DISCOVERY_PORT,
+				}
+			} else {
+				return nil, err
+			}
 		} else {
-			log.Println(e)
+			if ip := net.ParseIP(discoveryRange); ip != nil {
+				d.FirstOnly = true
+				d.discoveryRange = &net.UDPAddr{
+					IP:   ip,
+					Port: DEFAULT_DISCOVERY_PORT,
+				}
+			} else {
+				return nil, fmt.Errorf("Invalid IP specified %q", discoveryRange)
+			}
 		}
-		return true
+
 	}
-	return false
+
+	return d.Perform()
+}
+
+type Discoverer struct {
+	Timeout        time.Duration
+	FirstOnly      bool
+	listenAddr     *net.UDPAddr
+	discoveryRange *net.UDPAddr
+}
+
+func NewDiscoverer(timeout ...time.Duration) *Discoverer {
+	tout := DEFAULT_DISCOVERY_TIMEOUT
+
+	if len(timeout) == 1 {
+		tout = timeout[0]
+	}
+
+	return &Discoverer{
+		Timeout: tout,
+		listenAddr: &net.UDPAddr{
+			IP:   net.IPv4zero,
+			Port: 0,
+		},
+		discoveryRange: &net.UDPAddr{
+			IP:   net.IPv4bcast,
+			Port: DEFAULT_DISCOVERY_PORT,
+		},
+	}
+}
+
+func (self *Discoverer) Perform() ([]*Device, error) {
+	devices := make([]*Device, 0)
+
+	if conn, err := net.ListenUDP(`udp`, self.listenAddr); err == nil {
+		discoverPacket := encodePacket(`ECNQSTN`, CategoryAny)
+		log.Debugf("Sending discovery packet: %s", discoverPacket.debug())
+
+		// write discovery packet
+		if _, err = conn.WriteToUDP(discoverPacket.bytes(), self.discoveryRange); err == nil {
+			data := make([]byte, maxPacketSize)
+			errors := make(chan error)
+
+			go func() {
+				for {
+					if msglen, from, err := conn.ReadFromUDP(data); err == nil {
+						// create a device from any response packets that aren't the reflected discovery packet
+						if responsePacket := packet(data[:msglen]); !responsePacket.equals(discoverPacket) {
+							if device, err := self.createDeviceFromResponse(responsePacket, from); err == nil {
+								devices = append(devices, device)
+
+								if self.FirstOnly {
+									errors <- nil
+									return
+								}
+							} else {
+								errors <- err
+								return
+							}
+						}
+					} else {
+						errors <- err
+						return
+					}
+				}
+			}()
+
+			select {
+			case err := <-errors:
+				return devices, err
+			case <-time.After(self.Timeout):
+				break
+			}
+
+			return devices, nil
+		} else {
+			return devices, err
+		}
+	} else {
+		return devices, err
+	}
+}
+
+func (self *Discoverer) createDeviceFromResponse(responsePacket packet, from *net.UDPAddr) (*Device, error) {
+	var info DeviceInfo
+
+	if err := responsePacket.parseInfo(&info); err == nil {
+		if device, err := NewDevice(from, info); err == nil {
+			return device, nil
+		} else {
+			return nil, err
+		}
+	} else {
+		return nil, err
+	}
 }
