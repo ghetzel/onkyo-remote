@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/ghetzel/onkyo-remote"
+	"regexp"
 	"strconv"
 )
 
@@ -51,19 +52,41 @@ func initCommands() {
 	}
 }
 
-func MessageToCommand(subcommand string, m eiscp.Message) (*CommandInfo, *Value) {
+func MessageToCommand(subcommand string, m eiscp.Message) (*CommandInfo, *Value, error) {
 	if cmd, ok := codeToCmd[m.Code()]; ok && cmd != nil {
 		for i := range cmd.Values {
-			if cmd.Values[i].Code == subcommand {
-				value := &cmd.Values[i]
-				value.Data = m.Value()
+			if rx, err := regexp.Compile(`^` + cmd.Values[i].Code + `$`); err == nil {
+				if rx.MatchString(m.Value()) {
+					log.Debugf("%q: Value %+v matched", m.Value(), cmd.Values[i])
+					value := &cmd.Values[i]
+					value.Data = m.Value()
 
-				return cmd, value
+					// if matches := rx.FindStringSubmatch(m.Value()); len(matches) > 0 {
+					// 	value.Data = matches[0]
+					// } else {
+					//  value.Data = m.Value()
+					// }
+
+					// switch value.Type {
+					// case Hexadecimal:
+					// 	if v, err := strconv.ParseInt(value.Data, 10, 32); err == nil {
+					// 		value.Data = fmt.Sprintf("%02X", v)
+					// 	} else {
+					// 		return nil, nil, err
+					// 	}
+					// }
+
+					log.Debugf("CALL: %s (%s): %s (%s) %q", cmd.Name, cmd.Code, value.Name, value.Code, value.Data)
+
+					return cmd, value, nil
+				}
+			} else {
+				return nil, nil, err
 			}
 		}
 
-		return cmd, nil
+		return cmd, nil, nil
 	} else {
-		return nil, nil
+		return nil, nil, fmt.Errorf("Command %q not found", m.Code())
 	}
 }

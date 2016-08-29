@@ -112,7 +112,7 @@ func main() {
 					if err := client.Send(code, `QSTN`); err == nil {
 						select {
 						case message := <-client.Messages():
-							if ci, value := MessageToCommand(`QSTN`, message); ci != nil {
+							if ci, value, err := MessageToCommand(`QSTN`, message); err == nil {
 								v := ``
 
 								if value != nil {
@@ -131,7 +131,7 @@ func main() {
 									os.Exit(1)
 								}
 							} else {
-								log.Fatalf("Unknown command %q", message.Code())
+								log.Fatal(err)
 							}
 						case <-time.After(c.GlobalDuration(`response-timeout`)):
 						}
@@ -154,8 +154,8 @@ func main() {
 					if err := client.Send(code, c.Args().Tail()...); err == nil {
 						select {
 						case message := <-client.Messages():
-							if ci, _ := MessageToCommand(subcommand, message); ci == nil {
-								log.Fatalf("Unknown command %q", message.Code())
+							if _, _, err := MessageToCommand(subcommand, message); err != nil {
+								log.Fatal(err)
 							}
 						case <-time.After(c.GlobalDuration(`response-timeout`)):
 						}
