@@ -92,7 +92,14 @@ func (self *Device) listen() {
 			}
 
 			for _, pkt := range packets {
-				self.recv <- pkt.Message()
+				message := pkt.Message()
+
+				switch message.Code() {
+				case `NLT`, `NLS`:
+					continue
+				default:
+					self.recv <- pkt.Message()
+				}
 			}
 		} else {
 			log.Errorf("Failed to read response: %v", err)
