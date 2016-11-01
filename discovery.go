@@ -87,7 +87,7 @@ func (self *Discoverer) Perform() ([]*Device, error) {
 				for {
 					if msglen, from, err := conn.ReadFromUDP(data); err == nil {
 						// create a device from any response packets that aren't the reflected discovery packet
-						if responsePacket := packet(data[:msglen]); !responsePacket.equals(discoverPacket) {
+						if responsePacket := packet(data[:msglen]); !responsePacket.Equals(discoverPacket) {
 							if device, err := self.createDeviceFromResponse(responsePacket, from); err == nil {
 								devices = append(devices, device)
 

@@ -82,6 +82,7 @@ func (self *Device) listen() {
 	})
 
 	data := make([]byte, maxPacketSize)
+	var lastMessage Message
 
 	for {
 		if datalen, err := self.conn.Read(data); err == nil {
@@ -98,7 +99,13 @@ func (self *Device) listen() {
 				case `NLT`, `NLS`:
 					continue
 				default:
-					self.recv <- pkt.Message()
+					msg := pkt.Message()
+
+					if msg != lastMessage {
+						self.recv <- msg
+					}
+
+					lastMessage = msg
 				}
 			}
 		} else {

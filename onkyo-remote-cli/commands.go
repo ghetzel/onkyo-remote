@@ -5,6 +5,7 @@ import (
 	"github.com/ghetzel/onkyo-remote"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type ValueType int
@@ -50,6 +51,27 @@ func initCommands() {
 		cmd := &AllKnownCommands[i]
 		codeToCmd[cmd.Code] = cmd
 	}
+}
+
+func (self *CommandInfo) String() string {
+	values := make([]string, 0)
+
+	if len(self.Values) > 0 {
+		for _, value := range self.Values {
+			v := value.String()
+
+			if len(v) > 0 {
+				values = append(values, fmt.Sprintf("%s:%s", v, value.Name))
+			}
+		}
+	}
+
+	return fmt.Sprintf("%s\t%s\t%s\t%d\t%s",
+		self.Code,
+		self.Name,
+		self.Zone,
+		len(values),
+		strings.Join(values, "\t"))
 }
 
 func MessageToCommand(subcommand string, m eiscp.Message) (*CommandInfo, *Value, error) {

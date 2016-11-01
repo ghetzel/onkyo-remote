@@ -25,7 +25,7 @@ func (p packet) magic() string        { return string(p[0:4]) }
 func (p packet) headerSize() uint32   { return binary.BigEndian.Uint32(p[4:8]) }
 func (p packet) messageLen() int      { return int(binary.BigEndian.Uint32(p[8:12])) }
 func (p packet) version() uint8       { return p[12] }
-func (p packet) equals(o packet) bool { return bytes.Equal([]byte(p), []byte(o)) }
+func (p packet) Equals(o packet) bool { return bytes.Equal([]byte(p), []byte(o)) }
 func (p packet) debug() string        { return hexdump.Dump(p.bytes()) }
 
 func (p packet) message() []byte { return p[16 : 16+p.messageLen()] }

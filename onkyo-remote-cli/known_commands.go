@@ -56,7 +56,7 @@ var AllKnownCommands = []CommandInfo{
 		Name:        `master-volume`,
 		Description: `Master Volume Command`,
 		Values: []Value{
-			{Code: `[a-fA-F0-9]+`, Name: `setvol`, Description: `Volume Level 0-80`},
+			{Code: `[a-fA-F0-9]+`, Name: `setvol`, Description: `Volume Level 0-80`, Type: Hexadecimal},
 			{Code: `UP`, Name: `level-up`, Description: `sets Volume Level Up`},
 			{Code: `DOWN`, Name: `level-down`, Description: `sets Volume Level Down`},
 			{Code: `UP1`, Name: `level-up-1db-step`, Description: `sets Volume Level Up 1dB Step`},

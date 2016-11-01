@@ -25,17 +25,17 @@ var log = logging.MustGetLogger(`main`)
 // 	<-time.After(1 * time.Second)
 // }
 
-var client *eiscp.Device
+var device *eiscp.Device
 
 func configureDevices(c *cli.Context) error {
 	if devices, err := eiscp.Discover(c.Duration(`discovery-timeout`), c.String(`host`)); err == nil {
-		for _, device := range devices {
-			info := device.Info()
-			log.Noticef("Found device: [%x] %s at %s", info.Identifier, info.Model, device.Address().String())
+		for _, d := range devices {
+			info := d.Info()
+			log.Noticef("Found device: [%x] %s at %s", info.Identifier, info.Model, d.Address().String())
 		}
 
 		if len(devices) > 0 {
-			client = devices[0]
+			device = devices[0]
 			return nil
 		} else {
 			return fmt.Errorf("No devices found.")
@@ -109,9 +109,9 @@ func main() {
 			},
 			Action: func(c *cli.Context) {
 				if code := c.Args().First(); code != `` {
-					if err := client.Send(code, `QSTN`); err == nil {
+					if err := device.Send(code, `QSTN`); err == nil {
 						select {
-						case message := <-client.Messages():
+						case message := <-device.Messages():
 							if ci, value, err := MessageToCommand(`QSTN`, message); err == nil {
 								v := ``
 
@@ -151,9 +151,9 @@ func main() {
 				if code := c.Args().First(); code != `` {
 					subcommand := c.Args().Get(2)
 
-					if err := client.Send(code, c.Args().Tail()...); err == nil {
+					if err := device.Send(code, c.Args().Tail()...); err == nil {
 						select {
-						case message := <-client.Messages():
+						case message := <-device.Messages():
 							if _, _, err := MessageToCommand(subcommand, message); err != nil {
 								log.Fatal(err)
 							}
@@ -164,6 +164,22 @@ func main() {
 					}
 				} else {
 					log.Fatalf("Must specify a command area to query.")
+				}
+			},
+		},
+		{
+			Name:  `monitor`,
+			Usage: `Connect to a device and continuously monitor events.`,
+			Action: func(c *cli.Context) {
+				for {
+					select {
+					case message := <-device.Messages():
+						if ci, _, err := MessageToCommand(message.Code(), message); err == nil {
+							fmt.Printf("%d\t%s\n", int(time.Now().UnixNano()/1000000), ci.String())
+						} else {
+							log.Errorf("Message Error: %v", err)
+						}
+					}
 				}
 			},
 		},
