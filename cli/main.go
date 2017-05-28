@@ -1,14 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
-	"github.com/ghetzel/cli"
-	"github.com/ghetzel/onkyo-remote"
-	"github.com/op/go-logging"
 	"os"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ghetzel/cli"
+	"github.com/ghetzel/onkyo-remote"
+	"github.com/op/go-logging"
 )
 
 var log = logging.MustGetLogger(`main`)
@@ -25,10 +27,10 @@ var log = logging.MustGetLogger(`main`)
 // 	<-time.After(1 * time.Second)
 // }
 
-var device *eiscp.Device
+var device *onkyo.Device
 
 func configureDevices(c *cli.Context) error {
-	if devices, err := eiscp.Discover(c.Duration(`discovery-timeout`), c.String(`host`)); err == nil {
+	if devices, err := onkyo.Discover(c.Duration(`discovery-timeout`), c.String(`host`)); err == nil {
 		for _, d := range devices {
 			info := d.Info()
 			log.Noticef("Found device: [%x] %s at %s", info.Identifier, info.Model, d.Address().String())
@@ -47,9 +49,10 @@ func configureDevices(c *cli.Context) error {
 
 func main() {
 	app := cli.NewApp()
-	app.Name = `onkyo-iscp`
+	app.Name = `onkyo-remote`
 	app.Version = `0.0.1`
 	app.EnableBashCompletion = false
+
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  `log-level, L`,
@@ -65,12 +68,12 @@ func main() {
 		cli.DurationFlag{
 			Name:  `discovery-timeout, T`,
 			Usage: `How long to perform auto-discovery for`,
-			Value: eiscp.DEFAULT_DISCOVERY_TIMEOUT,
+			Value: onkyo.DEFAULT_DISCOVERY_TIMEOUT,
 		},
 		cli.DurationFlag{
 			Name:  `response-timeout, R`,
 			Usage: `How long to wait for command responses`,
-			Value: eiscp.DEFAULT_RESPONSE_TIMEOUT,
+			Value: onkyo.DEFAULT_RESPONSE_TIMEOUT,
 		},
 	}
 
@@ -79,7 +82,7 @@ func main() {
 
 		if level, err := logging.LogLevel(c.String(`log-level`)); err == nil {
 			logging.SetLevel(level, `main`)
-			logging.SetLevel(level, `eiscp`)
+			logging.SetLevel(level, `onkyo`)
 		}
 
 		initCommands()
@@ -142,8 +145,7 @@ func main() {
 					log.Fatalf("Must specify a command area to query.")
 				}
 			},
-		},
-		{
+		}, {
 			Name:      `call`,
 			Usage:     `Execute a given command.`,
 			ArgsUsage: `COMMAND SUBCOMMAND [ARGS]`,
@@ -166,24 +168,51 @@ func main() {
 					log.Fatalf("Must specify a command area to query.")
 				}
 			},
-		},
-		{
-			Name:  `monitor`,
+		}, {
+			Name:  `serve`,
 			Usage: `Connect to a device and continuously monitor events.`,
 			Action: func(c *cli.Context) {
-				for {
-					select {
-					case message := <-device.Messages():
-						if ci, _, err := MessageToCommand(message.Code(), message); err == nil {
-							fmt.Printf("%d\t%s\n", int(time.Now().UnixNano()/1000000), ci.String())
-						} else {
-							log.Errorf("Message Error: %v", err)
+				queries := make(chan []string)
+
+				go func() {
+					for {
+						select {
+						case query := <-queries:
+							if len(query) >= 2 {
+								if err := device.Send(query[0], query[1:]...); err == nil {
+									select {
+									case message := <-device.Messages():
+										if _, _, err := MessageToCommand(query[1], message); err != nil {
+											log.Error(err)
+										}
+									case <-time.After(c.GlobalDuration(`response-timeout`)):
+										log.Errorf("Timed out waiting for reply")
+									}
+								} else {
+									log.Errorf("Failed to send command: %v", err)
+								}
+							} else {
+								log.Warningf("Invalid syntax: commands must be in the format: COMMAND SUBCOMMAND [ARGS ..]")
+							}
+
+						case message := <-device.Messages():
+							if ci, _, err := MessageToCommand(message.Code(), message); err == nil {
+								fmt.Printf("%d\t%s\n", int(time.Now().UnixNano()/1000000), ci.String())
+							} else {
+								log.Errorf("Message Error: %v", err)
+							}
 						}
 					}
+				}()
+
+				scanner := bufio.NewScanner(os.Stdin)
+
+				for scanner.Scan() {
+					line := scanner.Text()
+					queries <- strings.Split(line, ` `)
 				}
 			},
-		},
-		{
+		}, {
 			Name:      `help`,
 			Usage:     `Show the documentation for a given command`,
 			ArgsUsage: `COMMAND`,

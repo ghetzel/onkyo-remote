@@ -1,18 +1,21 @@
-all: vendor fmt build
+.PHONY: test deps
 
-update:
-	test -d vendor && rm -rf vendor || exit 0
-	glide up --strip-vcs --update-vendored
+all: fmt deps build
 
-vendor:
-	go list github.com/Masterminds/glide
-	glide install --strip-vcs --update-vendored
-
-fmt:
-	gofmt -w .
-
-build: fmt
-	go build -o bin/`basename ${PWD}` ./onkyo-remote-cli/
+deps:
+	@go list golang.org/x/tools/cmd/goimports || go get golang.org/x/tools/cmd/goimports
+	go generate -x
+	go get .
 
 clean:
-	rm -rf vendor bin pkg
+	-rm -rf bin
+
+fmt:
+	goimports -w .
+	go vet .
+
+test:
+	go test .
+
+build: fmt
+	go build -o bin/`basename ${PWD}` cli/*.go

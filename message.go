@@ -1,4 +1,4 @@
-package eiscp
+package onkyo
 
 type Message string
 

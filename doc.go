@@ -11,4 +11,4 @@
 //   https://sites.google.com/a/webarts.ca/toms-blog/Blog/new-blog-items/javaeiscp-integraserialcontrolprotocol
 //   https://github.com/miracle2k/onkyo-eiscp
 //
-package eiscp
+package onkyo

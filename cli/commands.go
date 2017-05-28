@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/ghetzel/onkyo-remote"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/ghetzel/onkyo-remote"
 )
 
 type ValueType int
@@ -74,7 +75,7 @@ func (self *CommandInfo) String() string {
 		strings.Join(values, "\t"))
 }
 
-func MessageToCommand(subcommand string, m eiscp.Message) (*CommandInfo, *Value, error) {
+func MessageToCommand(subcommand string, m onkyo.Message) (*CommandInfo, *Value, error) {
 	if cmd, ok := codeToCmd[m.Code()]; ok && cmd != nil {
 		for i := range cmd.Values {
 			if rx, err := regexp.Compile(`^` + cmd.Values[i].Code + `$`); err == nil {

@@ -1,14 +1,15 @@
-package eiscp
+package onkyo
 
 import (
 	"fmt"
-	"github.com/op/go-logging"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/op/go-logging"
 )
 
-var log = logging.MustGetLogger(`eiscp`)
+var log = logging.MustGetLogger(`onkyo`)
 
 const DEFAULT_DISCOVERY_TIMEOUT = time.Duration(5) * time.Second
 const DEFAULT_RESPONSE_TIMEOUT = time.Duration(3) * time.Second

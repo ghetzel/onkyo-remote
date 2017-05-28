@@ -1,14 +1,15 @@
-package eiscp
+package onkyo
 
 import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/augustoroman/hexdump"
-	"github.com/augustoroman/multierror"
 	"strconv"
 	"strings"
+
+	"github.com/augustoroman/hexdump"
+	"github.com/augustoroman/multierror"
 )
 
 const maxPacketSize = 4096
